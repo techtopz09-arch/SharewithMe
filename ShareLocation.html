@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Location Share</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0b0f14;
+      color: #e7edf2;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: #151b22;
+      border: 1px solid #2a333c;
+      border-radius: 18px;
+      padding: 22px 20px 26px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #2a333c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 600;
+      color: #9fb2c4;
+      border: 1px solid #354049;
+    }
+
+    .header-text h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+
+    .header-text p {
+      font-size: 13px;
+      color: #8ea3b6;
+      margin-top: 2px;
+    }
+
+    .status-box {
+      background: #10161c;
+      border: 1px solid #26303a;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+    }
+
+    .status-label {
+      color: #a8bcc9;
+    }
+
+    .status-value {
+      font-weight: 600;
+      color: #e7edf2;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      background: #5a6b7a;
+    }
+
+    .status-dot.active {
+      background: #3fb950;
+      box-shadow: 0 0 8px #3fb95080;
+    }
+
+    .location-display {
+      margin-bottom: 20px;
+      background: #10161c;
+      border: 1px solid #26303a;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: #c3d1de;
+      min-height: 48px;
+    }
+
+    .location-display .empty {
+      color: #6f8195;
+    }
+
+    .share-btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: #26a69a;
+      color: #0b161a;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.1s ease;
+      margin-bottom: 10px;
+    }
+
+    .share-btn:hover {
+      background: #32c5b0;
+    }
+
+    .share-btn:active {
+      transform: scale(0.98);
+    }
+
+    .share-btn:disabled {
+      background: #2f7a73;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .reset-btn {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #2f3b46;
+      border-radius: 12px;
+      background: transparent;
+      color: #a8bcc9;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      margin-bottom: 12px;
+    }
+
+    .reset-btn:hover {
+      background: #1a232b;
+    }
+
+    .feedback {
+      font-size: 13px;
+      color: #9fb2c4;
+      min-height: 20px;
+      text-align: center;
+    }
+
+    .feedback.success {
+      color: #5fd7a0;
+    }
+
+    .feedback.error {
+      color: #f5a5a5;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="avatar">M</div>
+      <div class="header-text">
+        <h1>Member</h1>
+        <p>Location sharing</p>
+      </div>
+    </div>
+
+    <div class="status-box">
+      <div class="status-row">
+        <div>
+          <span class="status-dot" id="statusDot"></span>
+          <span class="status-label" id="statusLabel">Idle</span>
+        </div>
+        <span class="status-value" id="lastShared">Not shared yet</span>
+      </div>
+    </div>
+
+    <div class="location-display">
+      <div class="empty" id="locationText">Click Share location to get your position.</div>
+    </div>
+
+    <button class="share-btn" id="shareBtn">Share location</button>
+    <button class="reset-btn" id="resetBtn">Reset location permission</button>
+
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <script>
+    (function () {
+      const shareBtn = document.getElementById("shareBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const statusDot = document.getElementById("statusDot");
+      const statusLabel = document.getElementById("statusLabel");
+      const lastShared = document.getElementById("lastShared");
+      const locationText = document.getElementById("locationText");
+      const feedback = document.getElementById("feedback");
+
+      let sharedLocation = null;
+
+      function setFeedback(msg, type) {
+        feedback.textContent = msg;
+        feedback.className = "feedback";
+        if (type) feedback.classList.add(type);
+      }
+
+      function setStatus(active, label) {
+        statusDot.classList.toggle("active", active);
+        statusLabel.textContent = label;
+      }
+
+      function formatTime(ts) {
+        if (!ts) return "Not shared yet";
+        const d = new Date(ts);
+        return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+
+      function getPermissionState() {
+        if (!navigator.permissions) return "unknown";
+        return navigator.permissions
+          .query({ name: "geolocation" })
+          .then((p) => p.state)
+          .catch(() => "unknown");
+      }
+
+      async function shareLocation() {
+        if (!navigator.geolocation) {
+          setFeedback("Geolocation is not available on this device.", "error");
+          return;
+        }
+
+        const permState = await getPermissionState();
+        if (permState === "denied") {
+          setFeedback(
+            "Location permission is blocked for this page. Tap Reset location permission, then allow when asked.",
+            "error"
+          );
+          return;
+        }
+
+        setFeedback("Getting location…", "");
+        setStatus(true, "Locating");
+
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 15000,
+              maximumAge: 30000,
+            });
+          });
+
+          const payload = {
+            lat: position.coords.latitude,
+            lon: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: position.timestamp,
+            sharedAt: new Date().toISOString(),
+          };
+
+          sharedLocation = payload;
+
+          locationText.innerHTML =
+            "Latitude: " +
+            payload.lat.toFixed(6) +
+            "<br>Longitude: " +
+            payload.lon.toFixed(6) +
+            "<br>Accuracy: " +
+            payload.accuracy.toFixed(0) +
+            " m";
+
+          setStatus(true, "Shared");
+          lastShared.textContent = formatTime(payload.sharedAt);
+          setFeedback("Location shared successfully.", "success");
+        } catch (err) {
+          let msg = "Location access was denied or unavailable.";
+          if (err.code === 1) msg = "Location permission denied. Tap Reset location permission, then allow when asked.";
+          else if (err.code === 2) msg = "Location request timed out or failed.";
+          else if (err.code === 3) msg = "Location data is too old or unavailable.";
+
+          setFeedback(msg, "error");
+          setStatus(false, "Error");
+        }
+      }
+
+      async function resetPermission() {
+        setFeedback("Please allow location access when the browser asks.", "");
+        try {
+          const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 15000,
+              maximumAge: 30000,
+            });
+          });
+
+          const payload = {
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+            timestamp: pos.timestamp,
+            sharedAt: new Date().toISOString(),
+          };
+
+          sharedLocation = payload;
+
+          locationText.innerHTML =
+            "Latitude: " +
+            payload.lat.toFixed(6) +
+            "<br>Longitude: " +
+            payload.lon.toFixed(6) +
+            "<br>Accuracy: " +
+            payload.accuracy.toFixed(0) +
+            " m";
+
+          setStatus(true, "Shared");
+          lastShared.textContent = formatTime(payload.sharedAt);
+          setFeedback("Location permission updated and location shared.", "success");
+        } catch (err) {
+          let msg = "Permission was not granted.";
+          if (err.code === 1) msg = "Location permission still blocked. Please allow it in browser or phone settings.";
+          else if (err.code === 2) msg = "Location request timed out or failed.";
+          else if (err.code === 3) msg = "Location data is too old or unavailable.";
+
+          setFeedback(msg, "error");
+          setStatus(false, "Error");
+        }
+      }
+
+      shareBtn.addEventListener("click", shareLocation);
+      resetBtn.addEventListener("click", resetPermission);
+    })();
+  </script>
+</body>
+</html>
